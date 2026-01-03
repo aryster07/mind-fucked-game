@@ -5,16 +5,13 @@
 
 import React from 'react';
 import { GameProvider } from './context/GameContext';
-import { UserProvider } from './context/UserContext';
 import GameBoard from './components/GameBoard';
 
 const App = () => {
   return (
-    <UserProvider>
-      <GameProvider>
-        <GameBoard />
-      </GameProvider>
-    </UserProvider>
+    <GameProvider>
+      <GameBoard />
+    </GameProvider>
   );
 };
 

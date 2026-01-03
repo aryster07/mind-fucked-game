@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { useUser } from '../context/UserContext';
 import { motion } from 'framer-motion';
 import { Copy, Users, Play, ArrowLeft, Check, Share2 } from 'lucide-react';
 import { 
@@ -15,7 +14,7 @@ import clsx from 'clsx';
 
 const Lobby = () => {
     const { dispatch } = useGame();
-    const { userData, user } = useUser();
+    const [username, setUsername] = useState('');
     const [mode, setMode] = useState(null); // 'create' or 'join'
     const [roomCode, setRoomCode] = useState('');
     const [inputCode, setInputCode] = useState('');
@@ -24,6 +23,15 @@ const Lobby = () => {
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+    const [showUsernameInput, setShowUsernameInput] = useState(false);
+    const [tempUsername, setTempUsername] = useState('');
+
+    useEffect(() => {
+        const savedUsername = localStorage.getItem('username');
+        if (savedUsername) {
+            setUsername(savedUsername);
+        }
+    }, []);
 
     // Check for room code in URL on mount
     useEffect(() => {
@@ -32,8 +40,6 @@ const Lobby = () => {
         if (urlRoomCode) {
             setInputCode(urlRoomCode.toUpperCase());
             setMode('join');
-            // Auto-join
-            handleJoinFromLink(urlRoomCode.toUpperCase());
         }
     }, []);
 
@@ -59,19 +65,23 @@ const Lobby = () => {
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (roomCode && user) {
-                leaveRoom(roomCode, user.uid);
+            if (roomCode && username) {
+                leaveRoom(roomCode, 'user-' + username);
             }
         };
-    }, [roomCode, user]);
+    }, [roomCode, username]);
 
     const handleCreate = async () => {
+        if (!username.trim()) {
+            setError('Please enter a username');
+            return;
+        }
         setLoading(true);
         setError('');
         try {
             const code = await createRoom({
-                uid: user?.uid || 'local-' + Date.now(),
-                name: userData?.displayName || 'Player',
+                uid: 'user-' + username + '-' + Date.now(),
+                name: username,
                 online: true
             });
             setRoomCode(code);
@@ -82,30 +92,39 @@ const Lobby = () => {
         setLoading(false);
     };
 
-    const handleJoinFromLink = async (code) => {
+    const handleJoin = async () => {
+        if (!inputCode.trim()) {
+            setError('Please enter a room code');
+            return;
+        }
+        if (!showUsernameInput) {
+            // Show username input for joining
+            setShowUsernameInput(true);
+            return;
+        }
+        if (!tempUsername.trim()) {
+            setError('Please enter a username');
+            return;
+        }
         setLoading(true);
         setError('');
         try {
-            await joinRoom(code, {
-                uid: user?.uid || 'local-' + Date.now(),
-                name: userData?.displayName || 'Player',
+            await joinRoom(inputCode.toUpperCase(), {
+                uid: 'user-' + tempUsername + '-' + Date.now(),
+                name: tempUsername,
                 online: true
             });
-            setRoomCode(code);
+            setUsername(tempUsername);
+            localStorage.setItem('username', tempUsername);
+            setRoomCode(inputCode.toUpperCase());
             setMode('join');
+            setShowUsernameInput(false);
         } catch (err) {
             setError(err.message || 'Room not found. Please check the code.');
         }
         setLoading(false);
     };
 
-    const handleJoin = async () => {
-        if (!inputCode.trim()) {
-            setError('Please enter a room code');
-            return;
-        }
-        await handleJoinFromLink(inputCode.toUpperCase());
-    };
 
     const handleStartGame = async () => {
         if (room?.players?.length < 2) {
@@ -129,17 +148,19 @@ const Lobby = () => {
     };
 
     const handleBack = async () => {
-        if (roomCode && user) {
-            await leaveRoom(roomCode, user.uid);
+        if (roomCode && username) {
+            await leaveRoom(roomCode, 'user-' + username);
         }
         setMode(null);
         setRoomCode('');
         setRoom(null);
         setInputCode('');
         setError('');
+        setShowUsernameInput(false);
+        dispatch({ type: 'UPDATE_STATE', payload: { status: 'MENU' } });
     };
 
-    const isHost = room?.host === user?.uid;
+    const isHost = room && room.host && room.players && room.players.length > 0 && room.host === room.players[0].uid;
 
     return (
         <motion.div
@@ -176,31 +197,66 @@ const Lobby = () => {
             )}
 
             {mode === 'join' && !roomCode && (
-                <div className="flex flex-col gap-4 w-full">
-                    <input
-                        type="text"
-                        placeholder="Enter Room Code (e.g. ABC123)"
-                        value={inputCode}
-                        onChange={e => setInputCode(e.target.value.toUpperCase())}
-                        className="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg text-white text-center text-xl focus:ring-2 focus:ring-purple-500 outline-none tracking-widest font-bold"
-                        maxLength={6}
-                    />
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleJoin}
-                            disabled={loading || !inputCode.trim()}
-                            className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-white font-bold text-lg transition-all"
-                        >
-                            {loading ? 'Joining...' : 'Join'}
-                        </button>
-                        <button
-                            onClick={() => setMode(null)}
-                            className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-bold transition-all"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
+                <>
+                    {!showUsernameInput ? (
+                        <div className="flex flex-col gap-4 w-full">
+                            <input
+                                type="text"
+                                placeholder="Enter Room Code (e.g. ABC123)"
+                                value={inputCode}
+                                onChange={e => setInputCode(e.target.value.toUpperCase())}
+                                className="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg text-white text-center text-xl focus:ring-2 focus:ring-purple-500 outline-none tracking-widest font-bold"
+                                maxLength={6}
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleJoin}
+                                    disabled={loading || !inputCode.trim()}
+                                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-white font-bold text-lg transition-all"
+                                >
+                                    {loading ? 'Joining...' : 'Next'}
+                                </button>
+                                <button
+                                    onClick={() => setMode(null)}
+                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-bold transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-4 w-full">
+                            <p className="text-slate-300 text-center">Enter your username to join room <span className="font-bold text-purple-400">{inputCode}</span></p>
+                            <input
+                                type="text"
+                                placeholder="Your username..."
+                                value={tempUsername}
+                                onChange={e => setTempUsername(e.target.value)}
+                                className="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg text-white text-center text-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                                maxLength={15}
+                                autoFocus
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleJoin}
+                                    disabled={loading || !tempUsername.trim()}
+                                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-white font-bold text-lg transition-all"
+                                >
+                                    {loading ? 'Joining...' : 'Join Room'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowUsernameInput(false);
+                                        setTempUsername('');
+                                    }}
+                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-bold transition-all"
+                                >
+                                    Back
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {roomCode && room && (
@@ -243,7 +299,7 @@ const Lobby = () => {
                                     key={idx}
                                     className={clsx(
                                         "bg-slate-900 p-3 rounded-lg border-2 flex items-center gap-2",
-                                        player.uid === user?.uid ? "border-blue-500" : "border-slate-700"
+                                        player.name === username ? "border-blue-500" : "border-slate-700"
                                     )}
                                 >
                                     <div className="w-3 h-3 rounded-full bg-green-400"></div>
@@ -251,7 +307,7 @@ const Lobby = () => {
                                     {player.uid === room.host && (
                                         <span className="ml-auto text-xs bg-gold text-black px-2 py-0.5 rounded font-bold">HOST</span>
                                     )}
-                                    {player.uid === user?.uid && (
+                                    {player.name === username && (
                                         <span className="ml-auto text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-bold">YOU</span>
                                     )}
                                 </div>

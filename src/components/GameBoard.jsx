@@ -1,31 +1,24 @@
 
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { useUser } from '../context/UserContext';
 import PlayerHand from './PlayerHand';
 import Card from './Card';
 import MainMenu from './MainMenu';
 import Lobby from './Lobby';
-import Shop from './Shop';
-import DailyRewards from './DailyRewards';
 import GameLog from './GameLog';
 import PowerupGuide from './PowerupGuide';
-import Tutorial from './Tutorial';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, Zap, ShoppingBag, TrendingUp, Lightbulb } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 import { subscribeToRoom, sendChatMessage } from '../services/firebase/room.service';
 import { getHint } from '../services/game/ai.service';
 
 const GameBoard = () => {
     const { state, startGameSolo, dispatch } = useGame();
-    const { userData, loading: userLoading, getLevelProgress, user } = useUser();
     const { status, players, deck, discardPile, notification, turnIndex, roomCode } = state;
     
-    const [showShop, setShowShop] = useState(false);
     const [logs, setLogs] = useState([]);
     const [hint, setHint] = useState(null);
-    const levelProgress = getLevelProgress();
 
     // Subscribe to multiplayer updates
     useEffect(() => {
@@ -62,14 +55,15 @@ const GameBoard = () => {
     }, [notification, status]);
 
     const handleSendMessage = async (message) => {
-        if (roomCode && user) {
-            await sendChatMessage(roomCode, user.uid, userData?.displayName || 'Player', message);
+        const username = localStorage.getItem('username') || 'Player';
+        if (roomCode) {
+            await sendChatMessage(roomCode, 'user-' + username, username, message);
         } else {
             // Local chat (for solo mode)
             setLogs(prev => [...prev, {
                 type: 'chat',
                 timestamp: Date.now(),
-                player: userData?.displayName || 'You',
+                player: username,
                 message
             }]);
         }
@@ -81,79 +75,9 @@ const GameBoard = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-casino-green/30 to-casino-dark pointer-events-none"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] opacity-30 pointer-events-none"></div>
 
-            {/* Top Bar - Currency & Level */}
-            {status !== 'MENU' && status !== 'LOBBY' && !userLoading && userData && (
-                <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-40">
-                    {/* Left - Currency */}
-                    <div className="flex gap-3">
-                        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30">
-                            <Coins className="text-yellow-500" size={20} />
-                            <span className="text-white font-bold">{userData.coins}</span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-purple-500/30">
-                            <Zap className="text-purple-400" size={20} />
-                            <span className="text-white font-bold">{userData.tokens}</span>
-                        </div>
-                    </div>
-
-                    {/* Center - Level & XP */}
-                    <div className="flex items-center gap-3 bg-black/60 backdrop-blur-md px-6 py-2 rounded-full border border-gold/30">
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="text-gold" size={20} />
-                            <span className="text-gold font-black">LVL {userData.level}</span>
-                        </div>
-                        <div className="w-32 h-2 bg-slate-800 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${levelProgress.percentage}%` }}
-                                className="h-full bg-gradient-to-r from-gold to-amber-600"
-                            />
-                        </div>
-                        <span className="text-xs text-slate-400">{Math.floor(levelProgress.percentage)}%</span>
-                    </div>
-
-                    {/* Right - Shop & Hint Buttons */}
-                    <div className="flex gap-2">
-                        {status === 'PLAYING' && turnIndex === 0 && state.turnPhase === 'THROW' && (
-                            <button
-                                onClick={() => {
-                                    const userPlayer = players.find(p => p.id === 'user');
-                                    if (userPlayer) {
-                                        const hintResult = getHint(userPlayer.hand, discardPile);
-                                        setHint(hintResult);
-                                        setTimeout(() => setHint(null), 5000);
-                                    }
-                                }}
-                                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-full font-bold transition-all shadow-lg"
-                                title="Get a hint"
-                            >
-                                <Lightbulb size={20} className="text-yellow-300" />
-                                HINT
-                            </button>
-                        )}
-                        <button
-                            onClick={() => setShowShop(true)}
-                            className="flex items-center gap-2 bg-gold hover:bg-yellow-400 px-4 py-2 rounded-full font-bold transition-all shadow-lg"
-                        >
-                            <ShoppingBag size={20} />
-                            SHOP
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Screens */}
             {status === 'MENU' && <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50"><MainMenu /></div>}
             {status === 'LOBBY' && <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50"><Lobby /></div>}
-
-            {/* Daily Rewards */}
-            {!userLoading && userData && <DailyRewards />}
-
-            {/* Shop Modal */}
-            {showShop && <Shop onClose={() => setShowShop(false)} />}
-
-            {/* Tutorial */}
-            <Tutorial />
 
             {/* Powerup Guide */}
             {(status === 'PRE_GAME' || status === 'PLAYING' || status === 'GAME_OVER') && <PowerupGuide />}
