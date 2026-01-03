@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write to game rooms
+    match /rooms/{roomCode} {
+      allow read, write: if request.time < timestamp.date(2026, 6, 1);
+    }
+    
+    // Allow read/write to user data
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+  }
+}
