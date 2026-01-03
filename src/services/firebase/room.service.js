@@ -36,47 +36,52 @@ export const generateRoomCode = () => {
  * @returns {Promise<string>} Room code
  */
 export const createRoom = async (hostPlayer) => {
-  const db = getDatabase();
-  const roomCode = generateRoomCode();
+  try {
+    const db = getDatabase();
+    const roomCode = generateRoomCode();
 
-  if (!db) {
-    // Local fallback
-    const room = {
+    if (!db) {
+      // Local fallback
+      const room = {
+        code: roomCode,
+        host: hostPlayer.uid,
+        players: [hostPlayer],
+        status: 'waiting',
+        gameState: null,
+        chat: [],
+        createdAt: new Date().toISOString(),
+        logs: [],
+      };
+      localStorage.setItem(`room_${roomCode}`, JSON.stringify(room));
+      
+      if (roomChannel) {
+        roomChannel.postMessage({ type: 'ROOM_UPDATE', roomCode, room });
+      }
+      
+      return roomCode;
+    }
+
+    const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
+
+    await setDoc(roomRef, {
       code: roomCode,
       host: hostPlayer.uid,
       players: [hostPlayer],
       status: 'waiting',
       gameState: null,
-      chat: [],
-      createdAt: new Date().toISOString(),
-      logs: [],
-    };
-    localStorage.setItem(`room_${roomCode}`, JSON.stringify(room));
-    
-    if (roomChannel) {
-      roomChannel.postMessage({ type: 'ROOM_UPDATE', roomCode, room });
-    }
-    
+      createdAt: serverTimestamp(),
+      logs: [{
+        type: 'system',
+        message: `Room ${roomCode} created`,
+        timestamp: new Date().toISOString(),
+      }],
+    });
+
     return roomCode;
+  } catch (error) {
+    console.error('Error creating room:', error);
+    throw new Error(`Failed to create room: ${error.message}`);
   }
-
-  const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
-
-  await setDoc(roomRef, {
-    code: roomCode,
-    host: hostPlayer.uid,
-    players: [hostPlayer],
-    status: 'waiting',
-    gameState: null,
-    createdAt: serverTimestamp(),
-    logs: [{
-      type: 'system',
-      message: `Room ${roomCode} created`,
-      timestamp: new Date().toISOString(),
-    }],
-  });
-
-  return roomCode;
 };
 
 /**
@@ -86,66 +91,78 @@ export const createRoom = async (hostPlayer) => {
  * @returns {Promise<Object>} Room data
  */
 export const joinRoom = async (roomCode, player) => {
-  const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-  if (!db) {
-    // Local fallback
-    const roomData = localStorage.getItem(`room_${roomCode}`);
-    if (!roomData) {
-      throw new Error(`Room ${roomCode} not found`);
-    }
-
-    const room = JSON.parse(roomData);
-    
-    if (room.players.length >= 6) {
-      throw new Error('Room is full (max 6 players)');
-    }
-
-    if (!room.players.find(p => p.uid === player.uid)) {
-      room.players.push(player);
-      room.logs.push({
-        type: 'player',
-        message: `${player.name} joined`,
-        timestamp: new Date().toISOString(),
-      });
-      
-      localStorage.setItem(`room_${roomCode}`, JSON.stringify(room));
-      
-      if (roomChannel) {
-        roomChannel.postMessage({ type: 'ROOM_UPDATE', roomCode, room });
+    if (!db) {
+      // Local fallback
+      const roomData = localStorage.getItem(`room_${roomCode}`);
+      if (!roomData) {
+        throw new Error(`Room ${roomCode} not found`);
       }
+
+      const room = JSON.parse(roomData);
+      
+      if (room.players.length >= 6) {
+        throw new Error('Room is full (max 6 players)');
+      }
+
+      if (!room.players.find(p => p.uid === player.uid)) {
+        room.players.push(player);
+        room.logs.push({
+          type: 'player',
+          message: `${player.name} joined`,
+          timestamp: new Date().toISOString(),
+        });
+        
+        localStorage.setItem(`room_${roomCode}`, JSON.stringify(room));
+        
+        if (roomChannel) {
+          roomChannel.postMessage({ type: 'ROOM_UPDATE', roomCode, room });
+        }
+      }
+      
+      return room;
     }
-    
-    return room;
+
+    const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
+    const roomSnap = await getDoc(roomRef);
+
+    if (!roomSnap.exists()) {
+      throw new Error('Room not found');
+    }
+
+    const roomData = roomSnap.data();
+
+    if (roomData.players.length >= 6) {
+      throw new Error('Room is full');
+    }
+
+    if (roomData.status !== 'waiting') {
+      throw new Error('Game already started');
+    }
+
+    // Check if player already in room
+    const playerExists = roomData.players.some(p => p.uid === player.uid);
+    if (playerExists) {
+      return roomData;
+    }
+
+    // Update with new players array instead of arrayUnion
+    await updateDoc(roomRef, {
+      players: [...roomData.players, player],
+      logs: arrayUnion({
+        type: 'player',
+        message: `${player.name} joined the room`,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    return roomData;
+  } catch (error) {
+    console.error('Error joining room:', error);
+    throw error;
   }
-
-  const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
-  const roomSnap = await getDoc(roomRef);
-
-  if (!roomSnap.exists()) {
-    throw new Error('Room not found');
-  }
-
-  const roomData = roomSnap.data();
-
-  if (roomData.players.length >= 6) {
-    throw new Error('Room is full');
-  }
-
-  if (roomData.status !== 'waiting') {
-    throw new Error('Game already started');
-  }
-
-  await updateDoc(roomRef, {
-    players: arrayUnion(player),
-    logs: arrayUnion({
-      type: 'player',
-      message: `${player.name} joined the room`,
-      timestamp: new Date().toISOString(),
-    }),
-  });
-
-  return roomData;
 };
 
 /**
@@ -204,45 +221,50 @@ export const subscribeToRoom = (roomCode, callback) => {
  * @param {string} logMessage - Optional log message
  */
 export const updateGameState = async (roomCode, gameState, logMessage = null) => {
-  const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-  if (!db) {
-    // Local fallback
-    const roomData = localStorage.getItem(`room_${roomCode}`);
-    if (!roomData) return;
+    if (!db) {
+      // Local fallback
+      const roomData = localStorage.getItem(`room_${roomCode}`);
+      if (!roomData) return;
 
-    const room = JSON.parse(roomData);
-    room.gameState = gameState;
-    
+      const room = JSON.parse(roomData);
+      room.gameState = gameState;
+      
+      if (logMessage) {
+        room.logs.push({
+          type: 'game',
+          message: logMessage,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      
+      localStorage.setItem(`room_${roomCode}`, JSON.stringify(room));
+      
+      if (roomChannel) {
+        roomChannel.postMessage({ type: 'ROOM_UPDATE', roomCode, room });
+      }
+      
+      return;
+    }
+
+    const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
+    const updates = { gameState };
+
     if (logMessage) {
-      room.logs.push({
+      updates.logs = arrayUnion({
         type: 'game',
         message: logMessage,
         timestamp: new Date().toISOString(),
       });
     }
-    
-    localStorage.setItem(`room_${roomCode}`, JSON.stringify(room));
-    
-    if (roomChannel) {
-      roomChannel.postMessage({ type: 'ROOM_UPDATE', roomCode, room });
-    }
-    
-    return;
+
+    await updateDoc(roomRef, updates);
+  } catch (error) {
+    console.error('Error updating game state:', error);
+    // Don't throw - allow game to continue locally
   }
-
-  const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
-  const updates = { gameState };
-
-  if (logMessage) {
-    updates.logs = arrayUnion({
-      type: 'game',
-      message: logMessage,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  await updateDoc(roomRef, updates);
 };
 
 /**

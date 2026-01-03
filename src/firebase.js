@@ -3,5 +3,9 @@
  * Kept for backwards compatibility during migration
  */
 
-export { getDatabase as db, initializeFirebase } from './services/firebase/firebase.service';
+export { getDatabase, initializeFirebase } from './services/firebase/firebase.service';
+export { getAuthInstance as auth } from './services/firebase/user.service';
+
+// Alias for backwards compatibility
+export const db = getDatabase;
 

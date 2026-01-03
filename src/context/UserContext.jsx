@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../utils/userService';
+import { getAuthInstance } from '../services/firebase/user.service';
 import { signInAnonymously } from 'firebase/auth';
 import { 
   getUserData, 
@@ -12,8 +12,8 @@ import {
   equipCosmetic,
   calculateLevel,
   xpForNextLevel
-} from '../utils/userService';
-import { STARTING_CURRENCY, GAME_REWARDS, LEVEL_REWARDS } from '../utils/economy';
+} from '../services/firebase/user.service';
+import { STARTING_BALANCE, GAME_REWARDS, LEVEL_REWARDS } from '../constants/economy.constants';
 
 const UserContext = createContext();
 
@@ -24,6 +24,8 @@ export const UserProvider = ({ children }) => {
 
   // Initialize user authentication
   useEffect(() => {
+    const auth = getAuthInstance();
+    
     // If Firebase not configured, use local storage fallback
     if (!auth) {
       console.log('Using local storage for user data');
@@ -33,11 +35,10 @@ export const UserProvider = ({ children }) => {
         setUser({ uid: 'local-user' });
         setUserData(parsedUser);
       } else {
-        // Create local user
+        // Create local user with STARTING_BALANCE
         const newUserData = {
           displayName: `Player${Math.floor(Math.random() * 10000)}`,
-          coins: 1000,
-          tokens: 50,
+          ...STARTING_BALANCE,
           xp: 0,
           level: 1,
           gamesPlayed: 0,
@@ -138,7 +139,7 @@ export const UserProvider = ({ children }) => {
   const awardCoins = async (amount) => {
     if (!user) return;
     if (saveToLocalStorage({ coins: userData.coins + amount })) return;
-    await updateCurrency(user.uid, 'coins', amount);
+    await updateCurrency(user.uid, { coins: amount });
     await refreshUserData();
   };
 
@@ -146,7 +147,7 @@ export const UserProvider = ({ children }) => {
   const awardTokens = async (amount) => {
     if (!user) return;
     if (saveToLocalStorage({ tokens: userData.tokens + amount })) return;
-    await updateCurrency(user.uid, 'tokens', amount);
+    await updateCurrency(user.uid, { tokens: amount });
     await refreshUserData();
   };
 
@@ -160,8 +161,7 @@ export const UserProvider = ({ children }) => {
     // Check for level rewards
     if (result.leveledUp && LEVEL_REWARDS[result.newLevel]) {
       const reward = LEVEL_REWARDS[result.newLevel];
-      await updateCurrency(user.uid, 'coins', reward.coins);
-      await updateCurrency(user.uid, 'tokens', reward.tokens);
+      await updateCurrency(user.uid, { coins: reward.coins, tokens: reward.tokens });
       await refreshUserData();
       
       return {
@@ -198,7 +198,7 @@ export const UserProvider = ({ children }) => {
     
     // Update stats and currency
     await updateGameStats(user.uid, won, stats);
-    await updateCurrency(user.uid, 'coins', coinReward);
+    await updateCurrency(user.uid, { coins: coinReward });
     const levelUpResult = await awardXP(xpReward);
     
     await refreshUserData();

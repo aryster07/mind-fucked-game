@@ -4,14 +4,17 @@
  */
 
 import React from 'react';
+import { UserProvider } from './context/UserContext';
 import { GameProvider } from './context/GameContext';
 import GameBoard from './components/GameBoard';
 
 const App = () => {
   return (
-    <GameProvider>
-      <GameBoard />
-    </GameProvider>
+    <UserProvider>
+      <GameProvider>
+        <GameBoard />
+      </GameProvider>
+    </UserProvider>
   );
 };
 
