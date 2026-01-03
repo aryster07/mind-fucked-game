@@ -97,8 +97,8 @@ export const joinRoom = async (roomCode, player) => {
 
     const room = JSON.parse(roomData);
     
-    if (room.players.length >= 4) {
-      throw new Error('Room is full (max 4 players)');
+    if (room.players.length >= 6) {
+      throw new Error('Room is full (max 6 players)');
     }
 
     if (!room.players.find(p => p.uid === player.uid)) {
@@ -128,7 +128,7 @@ export const joinRoom = async (roomCode, player) => {
 
   const roomData = roomSnap.data();
 
-  if (roomData.players.length >= 4) {
+  if (roomData.players.length >= 6) {
     throw new Error('Room is full');
   }
 
@@ -249,7 +249,7 @@ export const updateGameState = async (roomCode, gameState, logMessage = null) =>
  * Start game in room
  * @param {string} roomCode - Room code
  */
-export const startGame = async (roomCode) => {
+export const startGame = async (roomCode, requesterId) => {
   const db = getDatabase();
 
   if (!db) {
@@ -258,6 +258,10 @@ export const startGame = async (roomCode) => {
     if (!roomData) return;
 
     const room = JSON.parse(roomData);
+    if (room.host !== requesterId) {
+      throw new Error('Only the host can start the game');
+    }
+
     room.status = 'playing';
     room.logs.push({
       type: 'system',
@@ -275,7 +279,14 @@ export const startGame = async (roomCode) => {
   }
 
   const roomRef = doc(db, FIRESTORE_COLLECTIONS.ROOMS, roomCode);
-  
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+  const roomData = snap.data();
+
+  if (roomData.host !== requesterId) {
+    throw new Error('Only the host can start the game');
+  }
+
   await updateDoc(roomRef, {
     status: 'playing',
     logs: arrayUnion({

@@ -4,7 +4,7 @@
  */
 
 export const GAME_CONFIG = {
-  MAX_PLAYERS: 4,
+  MAX_PLAYERS: 6,
   CARDS_PER_PLAYER: 4,
   MEMORIZATION_TIME: 8000, // 8 seconds
   REVEAL_DELAY: 1000, // 1 second

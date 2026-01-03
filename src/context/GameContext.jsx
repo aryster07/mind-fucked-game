@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { createDeck, shuffleDeck, calculateScore } from '../services/game/deck.service';
 import { dealCards } from '../services/game/player.service';
+import { updateGameState } from '../services/firebase/room.service';
 
 const GameContext = createContext();
 
@@ -20,6 +21,9 @@ const initialState = {
     powerAction: null,
     sourceCardIndex: null,
     thrownSlotIndex: null, // Track which slot was emptied
+    currentUserId: null,
+    fromRemote: false,
+    preGameEndsAt: null,
 };
 
 const gameReducer = (state, action) => {
@@ -27,7 +31,7 @@ const gameReducer = (state, action) => {
         case 'START_SOLO':
             const deck = shuffleDeck(createDeck());
             // Deal 4 cards to each player
-            const { players, drawPile } = dealCards(deck, 4, 4);
+            const { players, drawPile } = dealCards(deck, 4);
 
             // Flip User cards Face Up for memorization
             const playersWithFaceUp = players.map((p, i) =>
@@ -44,12 +48,15 @@ const gameReducer = (state, action) => {
                 turnPhase: 'THROW',
                 notification: 'Memorize & Arrange your cards! (8s)',
                 thrownSlotIndex: null,
+                currentUserId: 'user',
+                preGameEndsAt: Date.now() + 8000,
             };
         case 'START_GAME_PLAY':
             return {
                 ...state,
                 status: 'PLAYING',
                 notification: "Your Turn! Throw a card.",
+                preGameEndsAt: null,
                 players: state.players.map(p => ({
                     ...p,
                     hand: p.hand.map(c => ({ ...c, faceUp: false }))
@@ -247,27 +254,39 @@ const gameReducer = (state, action) => {
             const newPlayers = [...state.players];
             newPlayers[currentPlayerIndex] = { ...player, hand: newHand };
 
-            const nextTurnIndex = (state.turnIndex + 1) % 4;
+            const nextTurnIndex = state.players.length > 0 ? (state.turnIndex + 1) % state.players.length : 0;
 
             return {
                 ...state,
                 players: newPlayers,
                 turnIndex: nextTurnIndex,
                 turnPhase: 'THROW',
-                notification: nextTurnIndex === 0 ? "Your Turn!" : `Bot ${nextTurnIndex}'s Turn...`
+                notification: nextTurnIndex === 0 ? "Your Turn!" : `${state.players[nextTurnIndex]?.name || 'Player'}'s Turn...`
             };
         }
-        case 'START_ONLINE_GAME': {
-            const { roomCode, players } = action.payload;
+        case 'HOST_START_ONLINE_GAME': {
+            const { roomCode, players, currentUserId } = action.payload;
             const deck = shuffleDeck(createDeck());
-            const { players: dealtPlayers, drawPile } = dealCards(deck, players.length, 4);
 
-            // Map online players to game players
+            const orderedPlayers = (() => {
+                if (!players || players.length === 0) return [];
+                const meIndex = players.findIndex(p => p.uid === currentUserId);
+                if (meIndex >= 0) {
+                    const copy = [...players];
+                    const [me] = copy.splice(meIndex, 1);
+                    return [me, ...copy];
+                }
+                return players;
+            })();
+
+            const { players: dealtPlayers, drawPile } = dealCards(deck, orderedPlayers.length, orderedPlayers);
+
             const gamePlayers = dealtPlayers.map((p, i) => ({
                 ...p,
-                id: players[i]?.uid || `player-${i}`,
-                name: players[i]?.name || `Player ${i + 1}`,
+                id: orderedPlayers[i]?.uid || `player-${i}`,
+                name: orderedPlayers[i]?.name || `Player ${i + 1}`,
                 isBot: false,
+                isYou: orderedPlayers[i]?.uid === currentUserId,
                 hand: i === 0 ? p.hand.map(c => ({ ...c, faceUp: true })) : p.hand
             }));
 
@@ -280,8 +299,25 @@ const gameReducer = (state, action) => {
                 turnIndex: 0,
                 turnPhase: 'THROW',
                 roomCode,
+                currentUserId: currentUserId || null,
+                isHost: true,
                 notification: 'Memorize & Arrange your cards! (8s)',
                 thrownSlotIndex: null,
+            };
+        }
+        case 'APPLY_REMOTE_STATE': {
+            const { gameState, currentUserId, isHost } = action.payload;
+            const playersWithFlag = (gameState.players || []).map(p => ({
+                ...p,
+                isYou: p.id === currentUserId,
+            }));
+            return {
+                ...state,
+                ...gameState,
+                players: playersWithFlag,
+                currentUserId: currentUserId || state.currentUserId,
+                isHost: typeof isHost === 'boolean' ? isHost : state.isHost,
+                fromRemote: true,
             };
         }
         case 'UPDATE_STATE':
@@ -303,16 +339,63 @@ export const GameProvider = ({ children }) => {
         }, 8000);
     };
 
+    // Host-only: initialize online game and push to backend
+    const hostStartOnlineGame = async (roomPlayers, roomCode, currentUserId) => {
+        if (!roomPlayers || roomPlayers.length === 0) return;
+
+        const orderedPlayers = (() => {
+            const meIndex = roomPlayers.findIndex(p => p.uid === currentUserId);
+            if (meIndex >= 0) {
+                const copy = [...roomPlayers];
+                const [me] = copy.splice(meIndex, 1);
+                return [me, ...copy];
+            }
+            return roomPlayers;
+        })();
+
+        const deck = shuffleDeck(createDeck());
+        const { players: dealtPlayers, drawPile } = dealCards(deck, orderedPlayers.length, orderedPlayers);
+        const gamePlayers = dealtPlayers.map((p, i) => ({
+            ...p,
+            id: orderedPlayers[i]?.uid || `player-${i}`,
+            name: orderedPlayers[i]?.name || `Player ${i + 1}`,
+            isBot: false,
+            isYou: orderedPlayers[i]?.uid === currentUserId,
+            hand: p.hand.map(c => ({ ...c, faceUp: true })),
+        }));
+
+        const remoteState = {
+            status: 'PRE_GAME',
+            players: gamePlayers,
+            deck: drawPile,
+            discardPile: [],
+            turnIndex: 0,
+            turnPhase: 'THROW',
+            roomCode,
+            notification: 'Memorize & Arrange your cards! (8s)',
+            thrownSlotIndex: null,
+            currentUserId,
+            isHost: true,
+            preGameEndsAt: Date.now() + 8000,
+        };
+
+        dispatch({ type: 'APPLY_REMOTE_STATE', payload: { gameState: remoteState, currentUserId, isHost: true } });
+        await updateGameState(roomCode, remoteState, 'Host initialized game');
+    };
+
     const handleCardClick = (targetPlayerId, cardIndex) => {
         if (state.status !== 'PLAYING') return;
 
-        const isUserTurn = state.turnIndex === 0;
+        const myIndex = state.players.findIndex(p => p.id === state.currentUserId);
+        if (myIndex < 0) return;
+
+        const isUserTurn = state.turnIndex === myIndex;
 
         // Throw
-        if (isUserTurn && state.turnPhase === 'THROW' && targetPlayerId === 'user') {
-            dispatch({ type: 'THROW_CARD', payload: { playerIndex: 0, cardIndex } });
+        if (isUserTurn && state.turnPhase === 'THROW' && targetPlayerId === state.currentUserId) {
+            dispatch({ type: 'THROW_CARD', payload: { playerIndex: myIndex, cardIndex } });
             setTimeout(() => {
-                dispatch({ type: 'DRAW_CARD', payload: { playerIndex: 0 } });
+                dispatch({ type: 'DRAW_CARD', payload: { playerIndex: myIndex } });
             }, 600);
             return;
         }
@@ -321,19 +404,19 @@ export const GameProvider = ({ children }) => {
         if (isUserTurn && state.turnPhase === 'POWER_ACTION') {
             const { powerAction } = state;
 
-            if (powerAction === 'PEARRANGE_SELF' && targetPlayerId === 'user') {
+            if (powerAction === 'PEARRANGE_SELF' && targetPlayerId === state.currentUserId) {
                 dispatch({ type: 'EXECUTE_POWER', payload: { actionType: 'PEARRANGE_SELF' } });
             }
-            else if (powerAction === 'SPY' && targetPlayerId !== 'user') {
+            else if (powerAction === 'SPY' && targetPlayerId !== state.currentUserId) {
                 dispatch({ type: 'EXECUTE_POWER', payload: { actionType: 'SPY', targetPlayerId, cardIndex } });
             }
-            else if (powerAction === 'SHUFFLE_OPP' && targetPlayerId !== 'user') {
+            else if (powerAction === 'SHUFFLE_OPP' && targetPlayerId !== state.currentUserId) {
                 dispatch({ type: 'EXECUTE_POWER', payload: { actionType: 'SHUFFLE_OPP', targetPlayerId } });
             }
-            else if (powerAction === 'SWAP_SELF' && targetPlayerId === 'user') {
+            else if (powerAction === 'SWAP_SELF' && targetPlayerId === state.currentUserId) {
                 dispatch({ type: 'UPDATE_STATE', payload: { powerAction: 'SWAP_TARGET', sourceCardIndex: cardIndex, notification: "Select opponent card to take." } });
             }
-            else if (state.powerAction === 'SWAP_TARGET' && targetPlayerId !== 'user') {
+            else if (state.powerAction === 'SWAP_TARGET' && targetPlayerId !== state.currentUserId) {
                 dispatch({
                     type: 'EXECUTE_POWER', payload: {
                         actionType: 'SWAP',
@@ -387,8 +470,50 @@ export const GameProvider = ({ children }) => {
 
     }, [state.status, state.turnIndex, state.turnPhase, state.players]);
 
+    // Sync online state to backend (only current turn player, or host during PRE_GAME)
+    useEffect(() => {
+        const shouldSync = state.roomCode && state.status && state.status !== 'MENU' && state.status !== 'LOBBY';
+        if (!shouldSync) return;
+
+        if (state.fromRemote) {
+            // Reset the flag so next local change can sync
+            dispatch({ type: 'UPDATE_STATE', payload: { fromRemote: false } });
+            return;
+        }
+
+        const myIndex = state.players.findIndex(p => p.id === state.currentUserId);
+        const isMyTurn = myIndex >= 0 && myIndex === state.turnIndex;
+        const canSync = (state.status === 'PRE_GAME' && state.isHost) || isMyTurn;
+        if (!canSync) return;
+
+        const buildRemoteState = (s) => ({
+            status: s.status,
+            players: s.players,
+            deck: s.deck,
+            discardPile: s.discardPile,
+            turnIndex: s.turnIndex,
+            turnPhase: s.turnPhase,
+            roomCode: s.roomCode,
+            notification: s.notification,
+            thrownSlotIndex: s.thrownSlotIndex,
+            winner: s.winner,
+            preGameEndsAt: s.preGameEndsAt,
+        });
+
+        const sync = async () => {
+            const remoteState = buildRemoteState(state);
+            try {
+                await updateGameState(state.roomCode, remoteState, `${state.currentUserId || 'player'} synced state`);
+            } catch (err) {
+                console.error('Failed to sync state', err);
+            }
+        };
+
+        sync();
+    }, [state]);
+
     return (
-        <GameContext.Provider value={{ state, dispatch, startGameSolo, handleCardClick }}>
+        <GameContext.Provider value={{ state, dispatch, startGameSolo, handleCardClick, hostStartOnlineGame }}>
             {children}
         </GameContext.Provider>
     );

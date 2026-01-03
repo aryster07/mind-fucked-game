@@ -49,44 +49,65 @@ const GameLog = ({ logs = [], onSendMessage, roomCode, players = [] }) => {
       {/* Toggle Button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="absolute -left-8 top-1/2 -translate-y-1/2 bg-slate-800 hover:bg-slate-700 p-2 rounded-l-lg border border-slate-700 border-r-0 transition-colors"
+        className="absolute -left-10 top-1/2 -translate-y-1/2 bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-l-lg border-l border-t border-b border-slate-600 transition-colors"
       >
-        {isExpanded ? <ChevronRight size={20} className="text-white" /> : <ChevronLeft size={20} className="text-white" />}
+        {isExpanded ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
       </button>
 
       {isExpanded && (
         <>
           {/* Header */}
-          <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-4 border-b border-slate-700">
+          <div className="p-4 border-b border-slate-700">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <MessageSquare className="text-blue-400" size={20} />
-                <h3 className="font-bold text-white">Game Log</h3>
+                <MessageSquare className="text-purple-400" size={20} />
+                <h3 className="font-bold text-white">Game Info</h3>
               </div>
             </div>
-            
             {roomCode && (
-              <div className="bg-slate-800 px-3 py-1 rounded text-xs">
-                <span className="text-slate-400">Room:</span>
-                <span className="text-gold font-bold ml-2">{roomCode}</span>
-              </div>
-            )}
-
-            {/* Players Online */}
-            {players.length > 0 && (
-              <div className="mt-2">
-                <div className="text-xs text-slate-400 mb-1">Players ({players.length}/4)</div>
-                <div className="flex flex-wrap gap-1">
-                  {players.map((player, idx) => (
-                    <div key={idx} className="bg-slate-800 px-2 py-1 rounded text-xs flex items-center gap-1">
-                      <div className={clsx("w-2 h-2 rounded-full", player.online ? "bg-green-400" : "bg-slate-600")}></div>
-                      <span className="text-white">{player.name}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="text-xs text-slate-400">
+                Room: <span className="font-mono text-purple-400">{roomCode}</span>
               </div>
             )}
           </div>
+
+          {/* Players Section */}
+          {players.length > 0 && (
+            <div className="p-4 border-b border-slate-700">
+              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">
+                Players ({players.length}/6)
+              </h4>
+              <div className="space-y-2">
+                {players.map((player, idx) => (
+                  <motion.div
+                    key={player.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="flex items-center gap-3 p-2 bg-slate-800/50 rounded-lg"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-sm">
+                      {player.name?.charAt(0).toUpperCase() || 'P'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate">
+                        {player.name}
+                        {player.isHost && <span className="ml-1 text-xs text-yellow-400">👑</span>}
+                        {player.isYou && <span className="ml-1 text-xs text-purple-400">(You)</span>}
+                      </div>
+                      {player.score !== undefined && (
+                        <div className="text-xs text-slate-400">Score: {player.score}</div>
+                      )}
+                    </div>
+                    <div className={clsx(
+                      "w-2 h-2 rounded-full",
+                      player.isOnline ? "bg-green-400" : "bg-slate-600"
+                    )} />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Logs */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
