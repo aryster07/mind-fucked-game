@@ -1,4 +1,4 @@
-// ============ GAME BOARD PAGE - RICHUP.IO STYLE LAYOUT ============
+// ============ GAME BOARD PAGE - LANDSCAPE OPTIMIZED ============
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useGame } from '../context/GameContext';
 import { subscribeToRoom } from '../logic/firebase';
@@ -22,6 +22,7 @@ import CardActionAnimation from '../ui/CardActionAnimation';
 import LeftSidebar from '../ui/LeftSidebar';
 import RightSidebar from '../ui/RightSidebar';
 import MobileBottomBar from '../ui/MobileBottomBar';
+import RotateDevice from '../ui/RotateDevice';
 
 // Fast animation - 0.5s throw + 0.3s draw = 0.9s total
 const ANIMATION_TOTAL_TIME = 3600; // Match CardActionAnimation total (includes flip reveal)
@@ -73,7 +74,22 @@ const GameBoard = () => {
   const [swapRevealActive, setSwapRevealActive] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
   const [cardAction, setCardAction] = useState(null);
+  const [isLandscape, setIsLandscape] = useState(true);
   const lastVersionRef = React.useRef(0);
+
+  // Orientation detection - landscape only
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    };
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
 
   // Firebase subscription
   useEffect(() => {
@@ -242,15 +258,22 @@ const GameBoard = () => {
     }
   }, [leaveGame]);
 
+  // Show rotation prompt if portrait
+  if (!isLandscape) {
+    return <RotateDevice />;
+  }
+
   return (
     <div className="w-full h-screen overflow-hidden flex gpu-accelerated">
-      {/* Left Sidebar - Desktop only */}
+      {/* Left Sidebar - Desktop only (hidden on mobile landscape) */}
       {isActive && (
-        <LeftSidebar 
-          logs={gameLog} 
-          currentUserId={currentUserId}
-          roomCode={roomCode}
-        />
+        <div className="hidden lg:block">
+          <LeftSidebar 
+            logs={gameLog} 
+            currentUserId={currentUserId}
+            roomCode={roomCode}
+          />
+        </div>
       )}
 
       {/* Main Game Area - overflow hidden to contain player hands */}
@@ -388,8 +411,8 @@ const GameBoard = () => {
                   </div>
                 )}
 
-                {/* THE TABLE */}
-                <div className="relative w-[280px] h-[200px] md:w-[380px] md:h-[260px] lg:w-[450px] lg:h-[300px] rounded-3xl overflow-hidden flex-shrink-0">
+                {/* THE TABLE - Compact on mobile landscape */}
+                <div className="relative w-[240px] h-[160px] sm:w-[320px] sm:h-[220px] md:w-[380px] md:h-[260px] lg:w-[450px] lg:h-[300px] rounded-2xl md:rounded-3xl overflow-hidden flex-shrink-0">
                   {/* Table felt background */}
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900" />
                   {/* Table felt texture */}
@@ -464,18 +487,20 @@ const GameBoard = () => {
         )}
       </div>
 
-      {/* Right Sidebar - Desktop only */}
+      {/* Right Sidebar - Desktop only (hidden on mobile landscape) */}
       {isActive && (
-        <RightSidebar 
-          players={players}
-          currentUserId={currentUserId}
-          turnIndex={turnIndex}
-          onLeaveGame={handleLeaveGame}
-          status={status}
-        />
+        <div className="hidden lg:block">
+          <RightSidebar 
+            players={players}
+            currentUserId={currentUserId}
+            turnIndex={turnIndex}
+            onLeaveGame={handleLeaveGame}
+            status={status}
+          />
+        </div>
       )}
 
-      {/* Mobile Bottom Bar - Mobile only */}
+      {/* Mobile Bottom Bar - Mobile only (compact in landscape) */}
       {isActive && (
         <MobileBottomBar 
           logs={gameLog}

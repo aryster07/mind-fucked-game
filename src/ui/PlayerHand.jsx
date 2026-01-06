@@ -42,22 +42,22 @@ const PlayerHand = ({
             animate={isTurn ? { scale: [1, 1.02, 1] } : {}}
             transition={{ duration: 1.5, repeat: isTurn ? Infinity : 0 }}
             className={clsx(
-              'mb-2 px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold',
-              'flex items-center gap-1.5 shadow-lg',
+              'mb-1 px-2 py-1 rounded-full text-[10px] sm:text-xs font-semibold',
+              'flex items-center gap-1 shadow-lg',
               isTurn 
                 ? 'bg-amber-600/90 text-white' 
                 : 'glass text-slate-300'
             )}
           >
-            {isTurn && <span className="text-xs">⏳</span>}
-            <span className="truncate max-w-[80px] md:max-w-[100px]">{player.name}</span>
+            {isTurn && <span className="text-[8px] sm:text-xs">⏳</span>}
+            <span className="truncate max-w-[60px] sm:max-w-[80px]">{player.name}</span>
           </motion.div>
         )}
 
-        {/* Cards Container */}
+        {/* Cards Container - Compact gaps on mobile */}
         <motion.div 
           className={clsx(
-            'flex gap-2',
+            'flex gap-1 sm:gap-2',
             isVertical && 'flex-col',
             isShuffled && 'animate-shake'
           )}
@@ -144,16 +144,16 @@ const PlayerHand = ({
             animate={isTurn ? { scale: [1, 1.01, 1] } : {}}
             transition={{ duration: 2, repeat: isTurn ? Infinity : 0 }}
             className={clsx(
-              'mt-3 px-4 py-2 rounded-full text-sm font-semibold',
-              'flex items-center gap-2 shadow-lg',
+              'mt-1 sm:mt-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold',
+              'flex items-center gap-1 sm:gap-2 shadow-lg',
               isTurn 
                 ? 'bg-amber-600/90 text-white' 
                 : 'glass text-slate-300 border border-slate-600/30'
             )}
           >
-            {isTurn && <span>🎯</span>}
-            <span>{player.name}</span>
-            <span className="px-1.5 py-0.5 bg-indigo-500/30 rounded text-[10px] text-indigo-300">YOU</span>
+            {isTurn && <span className="text-sm sm:text-base">🎯</span>}
+            <span className="text-[10px] sm:text-xs">{player.name}</span>
+            <span className="px-1 py-0.5 bg-indigo-500/30 rounded text-[8px] sm:text-[10px] text-indigo-300">YOU</span>
           </motion.div>
         )}
 
