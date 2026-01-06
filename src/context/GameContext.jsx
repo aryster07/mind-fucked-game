@@ -82,6 +82,9 @@ const init = {
   drawnCardSlot: null,
   drawnCardRevealEnd: null,
   drawnPowerReminder: null,  // Shows reminder when you draw a power card
+  swapRevealSlot: null,      // Index of card received from swap
+  swapRevealEnd: null,       // Timestamp when swap reveal ends
+  gameLog: [],  // Array of all game actions for the log panel
   version: 0,
   syncId: 0,
 };
@@ -146,6 +149,27 @@ const reducer = (state, { type, payload }) => {
         expiresAt: Date.now() + 4000,
       } : null;
 
+      // Create log entries for this action
+      const newLogEntries = [
+        {
+          id: Date.now() + '-throw',
+          type: 'throw',
+          playerId: player.id,
+          playerName: player.name,
+          action: 'threw',
+          card: `${card.rank}${card.suit}`,
+          power: hasPower ? powerInfo.name : null,
+        },
+        {
+          id: Date.now() + '-draw',
+          type: 'draw',
+          playerId: player.id,
+          playerName: player.name,
+          action: 'drew a card',
+          card: drawnCard ? `${drawnCard.rank}${drawnCard.suit}` : null,
+        },
+      ];
+
       // Reveal the drawn card for 3 seconds
       const revealDuration = TIMING.POWER_REVEAL;
 
@@ -162,8 +186,11 @@ const reducer = (state, { type, payload }) => {
         drawnPowerReminder: drawnPowerReminder,
         powerToast: powerInfo ? { 
           ...powerInfo,
+          playerId: player.id,
+          playerName: player.name,
           expiresAt: Date.now() + 3000 
         } : null,
+        gameLog: [...state.gameLog, ...newLogEntries],
         notification: instruction || `${player.name} threw ${card.rank}${card.suit} and drew a card`,
         version: state.version + 1,
         syncId: state.syncId + 1,
@@ -186,6 +213,20 @@ const reducer = (state, { type, payload }) => {
 
       if (!result.success) return state;
 
+      // Get target player name
+      const targetPlayer = state.players.find(p => p.id === targetId);
+
+      // Create log entry for power execution
+      const powerLogEntry = {
+        id: Date.now() + '-power',
+        type: 'power',
+        playerId: player.id,
+        playerName: player.name,
+        action: `used ${getPowerInfo(state.powerAction)?.name}`,
+        power: getPowerInfo(state.powerAction)?.name,
+        targetName: targetPlayer?.name,
+      };
+
       // Build the new state based on power result
       const extras = {
         notification: result.notification,
@@ -194,6 +235,12 @@ const reducer = (state, { type, payload }) => {
         spyingByPlayerId: result.spyingByPlayerId || null,
       };
 
+      // For BLIND_SWAP, reveal the received card for 3 seconds
+      if (state.powerAction === 'BLIND_SWAP' && state.swapSourceIndex !== null) {
+        extras.swapRevealSlot = state.swapSourceIndex;
+        extras.swapRevealEnd = Date.now() + 3000; // 3 seconds reveal
+      }
+
       return {
         ...state,
         players: result.players || state.players,
@@ -201,6 +248,7 @@ const reducer = (state, { type, payload }) => {
         powerAction: null,
         swapSourceIndex: null,
         powerToast: null,
+        gameLog: [...state.gameLog, powerLogEntry],
         version: state.version + 1,
         syncId: state.syncId + 1,
         ...extras,
@@ -220,6 +268,17 @@ const reducer = (state, { type, payload }) => {
 
     case 'END_TURN': {
       const next = (state.turnIndex + 1) % state.players.length;
+      const nextPlayer = state.players[next];
+      
+      // Add turn change to log
+      const turnLogEntry = {
+        id: Date.now() + '-turn',
+        type: 'turn',
+        playerId: nextPlayer?.id,
+        playerName: nextPlayer?.name,
+        action: "'s turn",
+      };
+
       return {
         ...state,
         turnIndex: next,
@@ -233,6 +292,7 @@ const reducer = (state, { type, payload }) => {
         refreshMode: false,
         drawnCardSlot: null,
         drawnCardRevealEnd: null,
+        gameLog: [...state.gameLog, turnLogEntry],
         notification: `${state.players[next]?.name}'s turn`,
         version: state.version + 1,
         syncId: state.syncId + 1,
@@ -249,11 +309,30 @@ const reducer = (state, { type, payload }) => {
         playersWithScores = markPlayerBusted(playersWithScores, player.id);
       }
 
+      // Create log entries for show call
+      const showLogEntries = [
+        {
+          id: Date.now() + '-show',
+          type: 'show',
+          playerId: player.id,
+          playerName: player.name,
+          action: `called SHOW with ${callerScore} points`,
+        },
+        {
+          id: Date.now() + '-result',
+          type: valid ? 'win' : 'lose',
+          playerId: winnerInfo.winnerId,
+          playerName: winnerInfo.winnerName,
+          action: valid ? 'wins the game!' : 'wins by default (opponent busted)',
+        },
+      ];
+
       return {
         ...state,
         status: 'GAME_OVER',
         winner: winnerInfo.winnerId,
         players: playersWithScores,
+        gameLog: [...state.gameLog, ...showLogEntries],
         notification: valid
           ? `${player.name} wins with ${callerScore} points!`
           : `${player.name} BUSTED! ${winnerInfo.winnerName} wins!`,
@@ -276,6 +355,10 @@ const reducer = (state, { type, payload }) => {
         syncId: state.syncId + 1,
       };
     }
+
+    case 'LEAVE_GAME':
+      clearSession();
+      return { ...init, status: 'MENU' };
 
     case 'APPLY_REMOTE': {
       const { gameState, currentUserId, isHost, roomCode } = payload;
@@ -522,6 +605,7 @@ export const GameProvider = ({ children }) => {
       dispatch({ type: 'APPLY_REMOTE', payload: { gameState: gs, currentUserId: uid, isHost: host, roomCode: code } }),
     []
   );
+  const leaveGame = useCallback(() => dispatch({ type: 'LEAVE_GAME' }), []);
 
   const value = useMemo(
     () => ({
@@ -539,8 +623,9 @@ export const GameProvider = ({ children }) => {
       set,
       setLocal,
       applyRemote,
+      leaveGame,
     }),
-    [state, isMyTurn, myIndex, startSolo, throwCard, callShow, selectSwapSource, executePower, finishRefresh, rearrange, set, setLocal, applyRemote]
+    [state, isMyTurn, myIndex, startSolo, throwCard, callShow, selectSwapSource, executePower, finishRefresh, rearrange, set, setLocal, applyRemote, leaveGame]
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

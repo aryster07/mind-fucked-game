@@ -1,23 +1,52 @@
-// ============ DRAWN POWER REMINDER COMPONENT ============
-// Shows a reminder when player draws a power card
+// ============ DRAWN POWER REMINDER COMPONENT - CLEAN HINT ============
+// Shows a simple reminder when player draws a power card
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const DrawnPowerReminder = ({ reminder }) => {
-  if (!reminder || Date.now() >= reminder.expiresAt) return null;
+  const [visible, setVisible] = useState(true);
+  
+  useEffect(() => {
+    if (!reminder?.expiresAt) return;
+    
+    const checkExpiry = () => {
+      if (Date.now() >= reminder.expiresAt) {
+        setVisible(false);
+      }
+    };
+    
+    checkExpiry();
+    const interval = setInterval(checkExpiry, 100);
+    return () => clearInterval(interval);
+  }, [reminder]);
+
+  if (!reminder || !visible) return null;
 
   return (
-    <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-40 bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-3 rounded-xl shadow-lg border-2 border-amber-400 animate-bounce">
-      <div className="flex items-center gap-3 text-white">
-        <span className="text-3xl">{reminder.icon}</span>
-        <div>
-          <div className="font-bold text-sm">You drew a {reminder.cardRank}!</div>
-          <div className="text-xs text-amber-100">
-            Throw it later to use <span className="font-bold">{reminder.name}</span>!
+    <AnimatePresence>
+      <motion.div 
+        className="fixed bottom-28 md:bottom-36 left-1/2 -translate-x-1/2 z-40"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* Simple clean hint */}
+        <div className="bg-slate-800/90 border border-amber-500/40 rounded-lg px-4 py-2 shadow-lg">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-lg">{reminder.icon}</span>
+            <span className="text-amber-400 font-medium">
+              Power Card [{reminder.cardRank}]
+            </span>
+            <span className="text-slate-400">•</span>
+            <span className="text-slate-300">
+              {reminder.name}
+            </span>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

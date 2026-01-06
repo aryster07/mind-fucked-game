@@ -105,19 +105,53 @@ export function reshuffleDeck(deck, discardPile) {
  * Throws a card from hand and draws from deck
  * @param {Array} hand - Player's current hand
  * @param {number} slotIndex - Index of card to throw
- * @param {Object} drawnCard - Card drawn from deck
- * @returns {{hand: Array, thrownCard: Object|null}} Updated hand and thrown card
+ * @param {Array} deck - Current deck
+ * @param {Array} discardPile - Current discard pile
+ * @returns {{newHand: Array, newDeck: Array, newDiscard: Array, thrownCard: Object, drawnCard: Object}|null} Updated state
  */
-export function throwAndDraw(hand, slotIndex, drawnCard) {
-  if (slotIndex < 0 || slotIndex >= hand.length || !drawnCard) {
-    return { hand, thrownCard: null };
+export function throwAndDraw(hand, slotIndex, deck, discardPile) {
+  if (slotIndex < 0 || slotIndex >= hand.length) {
+    return null;
   }
   
+  // Clone arrays
+  let newDeck = [...deck];
+  let newDiscard = [...(discardPile || [])];
+  
+  // Get the thrown card
+  const thrownCard = hand[slotIndex];
+  if (!thrownCard) {
+    return null;
+  }
+  
+  // Add thrown card to discard pile
+  newDiscard.push(thrownCard);
+  
+  // If deck is empty, reshuffle discard pile (keep top card visible)
+  if (newDeck.length === 0 && newDiscard.length > 1) {
+    const topCard = newDiscard.pop(); // Save the card we just threw
+    newDeck = shuffle(newDiscard);
+    newDiscard = [topCard]; // Start fresh discard with just-thrown card
+  }
+  
+  // Draw a card from the deck
+  if (newDeck.length === 0) {
+    return null; // No cards left to draw
+  }
+  
+  const drawnCard = newDeck.pop();
+  
+  // Replace thrown card with drawn card
   const newHand = [...hand];
-  const thrownCard = newHand[slotIndex];
   newHand[slotIndex] = drawnCard;
   
-  return { hand: newHand, thrownCard };
+  return { 
+    newHand, 
+    newDeck, 
+    newDiscard, 
+    thrownCard, 
+    drawnCard 
+  };
 }
 
 /**

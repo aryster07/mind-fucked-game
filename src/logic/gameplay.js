@@ -3,6 +3,9 @@
  * @description Handles timing constants, scoring calculations, and game outcome determination
  */
 
+// Import power utilities for backwards compatibility exports
+import { getPowerFromCard, POWERS, VALUE_TO_POWER } from './powers';
+
 // ============================================================================
 // TIMING CONSTANTS
 // ============================================================================
@@ -115,3 +118,25 @@ export const findWinner = (players, callerIndex, callerScore) => {
 export const getNextTurnIndex = (currentIndex, totalPlayers) => {
   return (currentIndex + 1) % totalPlayers;
 };
+
+// ============================================================================
+// BACKWARDS COMPATIBILITY EXPORTS
+// ============================================================================
+// These are re-exports from powers.js for backwards compatibility
+
+/**
+ * Alias for getPowerFromCard - kept for backwards compatibility
+ * @param {Object} card - Card object with value property
+ * @returns {string|null} Power name or null if no power
+ */
+export const getPower = getPowerFromCard;
+
+/**
+ * Power map (value -> power name) for backwards compatibility
+ */
+export const POWER_MAP = VALUE_TO_POWER;
+
+/**
+ * Power info objects for backwards compatibility
+ */
+export const POWER_INFO = POWERS;
