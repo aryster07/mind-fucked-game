@@ -7,6 +7,7 @@ import { arrangePlayersForDisplay } from '../logic/players';
 // Pages
 import MainMenuPage from './MainMenu';
 import LobbyPage from './Lobby';
+import MobileGameBoard from './MobileGameBoard';
 
 // UI Components
 import PlayerHand from '../ui/PlayerHand';
@@ -75,12 +76,16 @@ const GameBoard = () => {
   const [dragIdx, setDragIdx] = useState(null);
   const [cardAction, setCardAction] = useState(null);
   const [isLandscape, setIsLandscape] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const lastVersionRef = React.useRef(0);
 
   // Orientation detection - landscape only
   useEffect(() => {
     const checkOrientation = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
+      const landscape = window.innerWidth > window.innerHeight;
+      const mobile = window.innerWidth < 768; // Less than md breakpoint
+      setIsLandscape(landscape);
+      setIsMobile(mobile);
     };
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
@@ -261,6 +266,30 @@ const GameBoard = () => {
   // Show rotation prompt if portrait
   if (!isLandscape) {
     return <RotateDevice />;
+  }
+
+  // Mobile landscape - use compact layout
+  if (isMobile && isActive && status === 'PLAYING') {
+    return (
+      <MobileGameBoard
+        arranged={arranged}
+        currentUserId={currentUserId}
+        turnIndex={turnIndex}
+        deck={deck}
+        discardPile={discardPile}
+        notification={notification}
+        turnPhase={turnPhase}
+        powerAction={powerAction}
+        swapSourceIndex={swapSourceIndex}
+        handleClick={handleClick}
+        shouldShow={shouldShow}
+        shouldHighlight={shouldHighlight}
+        isMyTurn={isMyTurn}
+        canShow={canShow}
+        callShow={callShow}
+        status={status}
+      />
+    );
   }
 
   return (
