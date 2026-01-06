@@ -1,4 +1,4 @@
-// ============ GAME BOARD PAGE - LANDSCAPE OPTIMIZED ============
+// ============ GAME BOARD PAGE - PC OPTIMIZED ============
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useGame } from '../context/GameContext';
 import { subscribeToRoom } from '../logic/firebase';
@@ -7,7 +7,6 @@ import { arrangePlayersForDisplay } from '../logic/players';
 // Pages
 import MainMenuPage from './MainMenu';
 import LobbyPage from './Lobby';
-import MobileGameBoard from './MobileGameBoard';
 
 // UI Components
 import PlayerHand from '../ui/PlayerHand';
@@ -23,7 +22,6 @@ import CardActionAnimation from '../ui/CardActionAnimation';
 import LeftSidebar from '../ui/LeftSidebar';
 import RightSidebar from '../ui/RightSidebar';
 import MobileBottomBar from '../ui/MobileBottomBar';
-import RotateDevice from '../ui/RotateDevice';
 
 // Fast animation - 0.5s throw + 0.3s draw = 0.9s total
 const ANIMATION_TOTAL_TIME = 3600; // Match CardActionAnimation total (includes flip reveal)
@@ -75,26 +73,7 @@ const GameBoard = () => {
   const [swapRevealActive, setSwapRevealActive] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
   const [cardAction, setCardAction] = useState(null);
-  const [isLandscape, setIsLandscape] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const lastVersionRef = React.useRef(0);
-
-  // Orientation detection - landscape only
-  useEffect(() => {
-    const checkOrientation = () => {
-      const landscape = window.innerWidth > window.innerHeight;
-      const mobile = window.innerWidth < 768; // Less than md breakpoint
-      setIsLandscape(landscape);
-      setIsMobile(mobile);
-    };
-    checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-    window.addEventListener('orientationchange', checkOrientation);
-    return () => {
-      window.removeEventListener('resize', checkOrientation);
-      window.removeEventListener('orientationchange', checkOrientation);
-    };
-  }, []);
 
   // Firebase subscription
   useEffect(() => {
@@ -263,46 +242,15 @@ const GameBoard = () => {
     }
   }, [leaveGame]);
 
-  // Show rotation prompt if portrait
-  if (!isLandscape) {
-    return <RotateDevice />;
-  }
-
-  // Mobile landscape - use compact layout
-  if (isMobile && isActive && status === 'PLAYING') {
-    return (
-      <MobileGameBoard
-        arranged={arranged}
-        currentUserId={currentUserId}
-        turnIndex={turnIndex}
-        deck={deck}
-        discardPile={discardPile}
-        notification={notification}
-        turnPhase={turnPhase}
-        powerAction={powerAction}
-        swapSourceIndex={swapSourceIndex}
-        handleClick={handleClick}
-        shouldShow={shouldShow}
-        shouldHighlight={shouldHighlight}
-        isMyTurn={isMyTurn}
-        canShow={canShow}
-        callShow={callShow}
-        status={status}
-      />
-    );
-  }
-
   return (
     <div className="w-full h-screen overflow-hidden flex gpu-accelerated">
-      {/* Left Sidebar - Desktop only (hidden on mobile landscape) */}
+      {/* Left Sidebar - Desktop only */}
       {isActive && (
-        <div className="hidden lg:block">
-          <LeftSidebar 
-            logs={gameLog} 
-            currentUserId={currentUserId}
-            roomCode={roomCode}
-          />
-        </div>
+        <LeftSidebar 
+          logs={gameLog} 
+          currentUserId={currentUserId}
+          roomCode={roomCode}
+        />
       )}
 
       {/* Main Game Area - overflow hidden to contain player hands */}
@@ -516,20 +464,18 @@ const GameBoard = () => {
         )}
       </div>
 
-      {/* Right Sidebar - Desktop only (hidden on mobile landscape) */}
+      {/* Right Sidebar - Desktop only */}
       {isActive && (
-        <div className="hidden lg:block">
-          <RightSidebar 
-            players={players}
-            currentUserId={currentUserId}
-            turnIndex={turnIndex}
-            onLeaveGame={handleLeaveGame}
-            status={status}
-          />
-        </div>
+        <RightSidebar 
+          players={players}
+          currentUserId={currentUserId}
+          turnIndex={turnIndex}
+          onLeaveGame={handleLeaveGame}
+          status={status}
+        />
       )}
 
-      {/* Mobile Bottom Bar - Mobile only (compact in landscape) */}
+      {/* Mobile Bottom Bar - Mobile only */}
       {isActive && (
         <MobileBottomBar 
           logs={gameLog}
