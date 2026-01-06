@@ -135,7 +135,7 @@ const RightSidebar = ({
               
               <div className="space-y-2 text-xs">
                 <div className="flex items-center gap-2 p-2 bg-slate-800/50 rounded-lg">
-                  <span className="text-base">�</span>
+                  <span className="text-base">✨</span>
                   <div>
                     <div className="text-slate-300 font-medium">7 - Refresh</div>
                     <div className="text-slate-500 text-[10px]">See & rearrange your cards</div>

@@ -12,7 +12,7 @@ const TIMING = {
   PHASE_4_WAIT: 300,        // Brief pause
   PHASE_5_DRAW_UP: 400,     // New card comes up to center (face down)
   PHASE_6_FLIP: 800,        // Card flips to reveal face
-  PHASE_7_SHOW: 1000,       // Hold to show the card
+  PHASE_7_SHOW: 1200,       // Hold to show the card (increased by 200ms)
   PHASE_8_TO_HAND: 400,     // Card goes to hand
 };
 
@@ -28,6 +28,9 @@ const TOTAL_TIME =
 
 const CardActionAnimation = ({ action, card, drawnCard, onComplete }) => {
   const [phase, setPhase] = useState(0);
+  
+  // Determine drawn card color
+  const drawnIsRed = drawnCard?.suit === '♥' || drawnCard?.suit === '♦';
   
   useEffect(() => {
     if (!action || !card) {
@@ -256,9 +259,9 @@ const CardActionAnimation = ({ action, card, drawnCard, onComplete }) => {
             </motion.span>
             <div className="text-center">
               <div className="text-sm text-emerald-200 mb-1">
-                {phase === 5 ? 'Drawing...' : phase === 6 ? 'Revealing!' : phase === 7 ? 'You got:' : 'To hand...'}
+                {phase === 5 ? 'Drawing...' : phase === 6 ? 'Revealing!' : phase === 7 ? 'You drew:' : 'To hand...'}
               </div>
-              <div className="text-lg">{phase >= 6 ? `${card.rank}${card.suit}` : 'New Card'}</div>
+              <div className="text-lg">{phase >= 6 && drawnCard ? `${drawnCard.rank}${drawnCard.suit}` : 'Drawing...'}</div>
             </div>
           </motion.div>
         )}
@@ -325,37 +328,44 @@ const CardActionAnimation = ({ action, card, drawnCard, onComplete }) => {
                   </div>
                 </div>
                 
-                {/* Card Face (visible when flipped) */}
+                {/* Card Face (visible when flipped) - Shows actual drawn card */}
                 <div 
                   className="absolute inset-0 w-32 h-48 md:w-40 md:h-56 rounded-2xl shadow-2xl overflow-hidden border-2 border-white/40 bg-white"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
-                  <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
-                    {/* Top left corner */}
-                    <div className="absolute top-2 left-2 flex flex-col items-center leading-tight">
-                      <span className={`text-base md:text-lg font-bold ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                        {card.rank}
+                  {drawnCard ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
+                      {/* Top left corner */}
+                      <div className="absolute top-2 left-2 flex flex-col items-center leading-tight">
+                        <span className={`text-base md:text-lg font-bold ${drawnIsRed ? 'text-red-600' : 'text-slate-900'}`}>
+                          {drawnCard.rank}
+                        </span>
+                        <span className={`text-lg md:text-xl -mt-1 ${drawnIsRed ? 'text-red-600' : 'text-slate-900'}`}>
+                          {drawnCard.suit}
+                        </span>
+                      </div>
+                      
+                      {/* Center suit - large */}
+                      <span className={`text-5xl md:text-6xl ${drawnIsRed ? 'text-red-600' : 'text-slate-900'}`}>
+                        {drawnCard.suit}
                       </span>
-                      <span className={`text-lg md:text-xl -mt-1 ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                        {card.suit}
-                      </span>
+                      
+                      {/* Bottom right corner (upside down) */}
+                      <div className="absolute bottom-2 right-2 flex flex-col items-center leading-tight rotate-180">
+                        <span className={`text-base md:text-lg font-bold ${drawnIsRed ? 'text-red-600' : 'text-slate-900'}`}>
+                          {drawnCard.rank}
+                        </span>
+                        <span className={`text-lg md:text-xl -mt-1 ${drawnIsRed ? 'text-red-600' : 'text-slate-900'}`}>
+                          {drawnCard.suit}
+                        </span>
+                      </div>
                     </div>
-                    
-                    {/* Center suit - large */}
-                    <span className={`text-5xl md:text-6xl ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                      {card.suit}
-                    </span>
-                    
-                    {/* Bottom right corner (upside down) */}
-                    <div className="absolute bottom-2 right-2 flex flex-col items-center leading-tight rotate-180">
-                      <span className={`text-base md:text-lg font-bold ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                        {card.rank}
-                      </span>
-                      <span className={`text-lg md:text-xl -mt-1 ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                        {card.suit}
-                      </span>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
+                      <span className="text-5xl md:text-6xl mb-2">🎴</span>
+                      <span className="text-xl md:text-2xl font-bold text-slate-700">NEW!</span>
                     </div>
-                  </div>
+                  )}
                 </div>
               </motion.div>
             </div>

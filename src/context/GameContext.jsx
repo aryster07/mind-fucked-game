@@ -170,8 +170,8 @@ const reducer = (state, { type, payload }) => {
         },
       ];
 
-      // Reveal the drawn card for 3 seconds
-      const revealDuration = TIMING.POWER_REVEAL;
+      // Reveal the drawn card for 5 seconds
+      const revealDuration = 5000;
 
       const newState = {
         ...state,
@@ -506,6 +506,21 @@ export const GameProvider = ({ children }) => {
     );
     return () => clearTimeout(timer);
   }, [state.drawnCardRevealEnd]);
+
+  // SWAP REVEAL TIMER - auto-clear after swap reveal expires
+  useEffect(() => {
+    if (!state.swapRevealEnd) return;
+    const remaining = state.swapRevealEnd - Date.now();
+    if (remaining <= 0) {
+      dispatch({ type: 'SET_LOCAL', payload: { swapRevealSlot: null, swapRevealEnd: null } });
+      return;
+    }
+    const timer = setTimeout(
+      () => dispatch({ type: 'SET_LOCAL', payload: { swapRevealSlot: null, swapRevealEnd: null } }),
+      remaining
+    );
+    return () => clearTimeout(timer);
+  }, [state.swapRevealEnd]);
 
   // DRAWN POWER REMINDER TIMER - auto-clear after it expires
   useEffect(() => {

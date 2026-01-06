@@ -60,6 +60,7 @@ const Card = React.memo(({
         onClick={handleClick}
         whileHover={hasClick ? { y: -4, scale: 1.02 } : {}}
         whileTap={hasClick ? { scale: 0.97 } : {}}
+        transition={{ type: 'tween', duration: 0.1 }}
         className={clsx(
           sizeClass,
           'playing-card card-back rounded-xl relative gpu-accelerated',
@@ -91,7 +92,7 @@ const Card = React.memo(({
       animate={isNew ? { scale: 1, rotateY: 0 } : {}}
       whileHover={hasClick ? { y: -8, scale: 1.05, rotateX: 5 } : {}}
       whileTap={hasClick ? { scale: 0.97 } : {}}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      transition={{ type: 'tween', duration: 0.1 }}
       className={clsx(
         sizeClass,
         'playing-card card-face rounded-xl relative gpu-accelerated',

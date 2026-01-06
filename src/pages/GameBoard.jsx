@@ -24,7 +24,7 @@ import RightSidebar from '../ui/RightSidebar';
 import MobileBottomBar from '../ui/MobileBottomBar';
 
 // Fast animation - 0.5s throw + 0.3s draw = 0.9s total
-const ANIMATION_TOTAL_TIME = 3600; // Match CardActionAnimation total (includes flip reveal)
+const ANIMATION_TOTAL_TIME = 3800; // Match CardActionAnimation total (includes flip reveal)
 
 const POS_ORDER = ['bottom', 'top', 'left', 'right'];
 
@@ -159,9 +159,11 @@ const GameBoard = () => {
       if (turnPhase === 'SHOW_OR_THROW' && isMe) {
         const player = players.find(p => p.id === currentUserId);
         const cardToThrow = player?.hand[cardIdx];
+        // Peek at the top card of the deck (will be drawn next)
+        const cardToDraw = deck.length > 0 ? deck[deck.length - 1] : null;
         
         if (cardToThrow) {
-          setCardAction({ type: 'throwing', card: cardToThrow, slotIndex: cardIdx });
+          setCardAction({ type: 'throwing', card: cardToThrow, drawnCard: cardToDraw, slotIndex: cardIdx });
           setTimeout(() => {
             throwCard(cardIdx);
             setCardAction(null);
@@ -264,7 +266,8 @@ const GameBoard = () => {
         {cardAction && (
           <CardActionAnimation 
             action={cardAction.type} 
-            card={cardAction.card} 
+            card={cardAction.card}
+            drawnCard={cardAction.drawnCard}
           />
         )}
 
