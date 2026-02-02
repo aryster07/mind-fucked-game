@@ -2,12 +2,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Power card info - Correct abilities
+// Power card info - Correct abilities matching powers.js
 const POWER_CARDS = {
-  '7': { name: 'Refresh', icon: '🔄', desc: 'See & rearrange your cards' },
-  '9': { name: 'Blind Swap', icon: '🔀', desc: 'Swap your card with opponent' },
-  'J': { name: 'Shuffle', icon: '🌀', desc: "Shuffle an opponent's cards" },
-  'K': { name: 'Spy', icon: '👁️', desc: "See an opponent's card" },
+  '7': { name: 'Refresh', icon: '✨', desc: 'See & rearrange your cards' },
+  '9': { name: 'Blind Swap', icon: '🔄', desc: 'Swap your card with opponent' },
+  'J': { name: 'Chaos Shuffle', icon: '🌀', desc: "Shuffle an opponent's cards" },
+  'K': { name: 'Global Spy', icon: '👁️', desc: "See an opponent's cards" },
 };
 
 const RightSidebar = ({ 

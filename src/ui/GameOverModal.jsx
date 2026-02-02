@@ -3,7 +3,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 
-const GameOverModal = ({ notification, players, winnerId, onPlayAgain }) => {
+const GameOverModal = ({ notification, players, winnerId, onPlayAgain, onBackToMenu }) => {
   // Sort players by score (lowest first)
   const sortedPlayers = [...players].sort((a, b) => (a.score || 99) - (b.score || 99));
   const winner = players.find(p => p.id === winnerId);
@@ -118,24 +118,42 @@ const GameOverModal = ({ notification, players, winnerId, onPlayAgain }) => {
           ))}
         </div>
 
-        {/* Play again button */}
-        <motion.button
-          onClick={onPlayAgain}
-          whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(139,92,246,0.5)' }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full py-4 rounded-xl font-bold text-white text-lg shadow-xl transition-all relative overflow-hidden group"
-          style={{
-            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)'
-          }}
-        >
-          {/* Shine effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-          
-          <span className="relative flex items-center justify-center gap-2">
-            <span>🎮</span>
-            <span>Play Again</span>
-          </span>
-        </motion.button>
+        {/* Action buttons */}
+        <div className="space-y-3">
+          {/* Play again button */}
+          <motion.button
+            onClick={onPlayAgain}
+            whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(139,92,246,0.5)' }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-4 rounded-xl font-bold text-white text-lg shadow-xl transition-all relative overflow-hidden group"
+            style={{
+              background: 'linear-gradient(135deg, #8b5cf6, #6366f1)'
+            }}
+          >
+            {/* Shine effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+            
+            <span className="relative flex items-center justify-center gap-2">
+              <span>🎮</span>
+              <span>Play Again</span>
+            </span>
+          </motion.button>
+
+          {/* Back to menu button */}
+          {onBackToMenu && (
+            <motion.button
+              onClick={onBackToMenu}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full py-3 rounded-xl font-medium text-slate-300 border border-slate-600 hover:bg-slate-700/50 transition-all"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <span>🏠</span>
+                <span>Back to Menu</span>
+              </span>
+            </motion.button>
+          )}
+        </div>
       </motion.div>
     </motion.div>
   );

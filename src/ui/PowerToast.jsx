@@ -28,7 +28,10 @@ const PowerToast = ({ power, expiresAt }) => {
 
   if (!power || !visible) return null;
 
-  const colors = POWER_COLORS[power.type] || POWER_COLORS.REFRESH;
+  // Power object has 'name' property (e.g., "REFRESH", "BLIND SWAP")
+  // Convert to key format for color lookup
+  const powerKey = power.name?.toUpperCase().replace(' ', '_') || 'REFRESH';
+  const colors = POWER_COLORS[powerKey] || POWER_COLORS.REFRESH;
 
   return (
     <AnimatePresence>

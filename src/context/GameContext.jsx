@@ -448,10 +448,17 @@ export const GameProvider = ({ children }) => {
           // Bot just finishes refresh without rearranging
           dispatch({ type: 'REFRESH_DONE' });
         } else if (power === 'BLIND_SWAP' || power === 'CHAOS_SHUFFLE' || power === 'GLOBAL_SPY') {
-          // Pick a random opponent
-          const opponents = players.filter(p => !p.id?.startsWith('bot') || p.id !== currentPlayer.id);
-          const humanPlayer = players.find(p => p.id === currentUserId);
-          const target = humanPlayer || opponents[Math.floor(Math.random() * opponents.length)];
+          // Find valid targets (players other than current bot)
+          const validTargets = players.filter(p => p.id !== currentPlayer.id);
+          if (validTargets.length === 0) {
+            // No valid targets, just end turn
+            dispatch({ type: 'REFRESH_DONE' });
+            return;
+          }
+          
+          // Prefer targeting human player for more engaging gameplay
+          const humanPlayer = validTargets.find(p => p.id === currentUserId);
+          const target = humanPlayer || validTargets[Math.floor(Math.random() * validTargets.length)];
           
           if (power === 'BLIND_SWAP') {
             // Set swap source first, then execute

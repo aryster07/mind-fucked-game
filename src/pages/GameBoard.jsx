@@ -23,8 +23,9 @@ import LeftSidebar from '../ui/LeftSidebar';
 import RightSidebar from '../ui/RightSidebar';
 import MobileBottomBar from '../ui/MobileBottomBar';
 
-// Fast animation - 0.5s throw + 0.3s draw = 0.9s total
-const ANIMATION_TOTAL_TIME = 3800; // Match CardActionAnimation total (includes flip reveal)
+// Animation timing must match CardActionAnimation phases:
+// Phase 1-3: 700ms, Phase 4: 300ms, Phase 5-8: 2800ms = 3800ms total
+const ANIMATION_TOTAL_TIME = 3800;
 
 const POS_ORDER = ['bottom', 'top', 'left', 'right'];
 
@@ -327,6 +328,7 @@ const GameBoard = () => {
             players={players}
             winnerId={state.winner}
             onPlayAgain={startSolo}
+            onBackToMenu={leaveGame}
           />
         )}
 

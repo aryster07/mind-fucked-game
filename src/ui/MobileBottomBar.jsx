@@ -41,7 +41,7 @@ const MobileBottomBar = ({ logs = [], currentUserId, roomCode, onLeaveGame }) =>
   return (
     <>
       {/* Fixed bottom bar - only on mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/98 backdrop-blur-lg border-t border-slate-700/50">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/98 backdrop-blur-lg border-t border-slate-700/50 safe-bottom">
         <div className="flex items-center justify-between px-3 py-2">
           {/* Last action preview - tappable to expand */}
           <button 

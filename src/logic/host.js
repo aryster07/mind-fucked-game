@@ -61,13 +61,16 @@ export async function initializeGame(roomPlayers, roomCode, currentUserId) {
  * @returns {Object} Initial solo game state
  */
 export function initializeSoloGame(currentUserId) {
-  const deck = createDeck();
+  const fullDeck = createDeck();
+  
+  // Use dealHands to properly distribute cards and keep remaining deck
+  const { hands, deck } = dealHands(fullDeck, 4, 4);
 
   const players = [
-    { id: currentUserId, name: 'You', hand: deck.slice(0, 4), isYou: true },
-    { id: 'bot1', name: 'Bot 1', hand: deck.slice(4, 8), isYou: false },
-    { id: 'bot2', name: 'Bot 2', hand: deck.slice(8, 12), isYou: false },
-    { id: 'bot3', name: 'Bot 3', hand: deck.slice(12, 16), isYou: false },
+    { id: currentUserId, name: 'You', hand: hands[0], isYou: true },
+    { id: 'bot1', name: 'Bot 1', hand: hands[1], isYou: false },
+    { id: 'bot2', name: 'Bot 2', hand: hands[2], isYou: false },
+    { id: 'bot3', name: 'Bot 3', hand: hands[3], isYou: false },
   ];
 
   return {
@@ -76,7 +79,7 @@ export function initializeSoloGame(currentUserId) {
     isHost: true,
     preGameEndsAt: Date.now() + TIMING.PRE_GAME,
     notification: 'Memorize your cards!',
-    deck: deck.slice(16),
+    deck,
     players,
     discardPile: [],
     turnIndex: 0,

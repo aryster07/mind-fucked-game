@@ -293,6 +293,13 @@ body {
   }
 }
 
+/* Safe area padding for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 /* ============ SCROLLBAR ============ */
 ::-webkit-scrollbar {
   width: 6px;
