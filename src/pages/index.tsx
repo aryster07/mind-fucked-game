@@ -1,115 +1,161 @@
-import Image from "next/image";
-import localFont from "next/font/local";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { motion } from 'framer-motion';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import HowToPlayModal from '@/components/game/HowToPlayModal';
+import { signInAsGuest } from '@/lib/firebase/auth';
+import { useGameActions } from '@/lib/hooks/useGameActions';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function Home() {
-  return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/pages/index.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const router = useRouter();
+  const actions = useGameActions();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const [name, setName] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [roomCode, setRoomCode] = useState('');
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      toast.error('Enter your name');
+      return;
+    }
+    try {
+      await signInAsGuest(name.trim());
+      const result = await actions.createGame.call({ name: name.trim() });
+      if (result) {
+        router.push(`/game/${result.gameId}`);
+      } else {
+        toast.error(actions.createGame.error || 'Failed to create game');
+      }
+    } catch {
+      toast.error('Failed to sign in');
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!name.trim()) {
+      toast.error('Enter your name');
+      return;
+    }
+    if (!roomCode.trim()) {
+      toast.error('Enter room code');
+      return;
+    }
+    try {
+      await signInAsGuest(name.trim());
+      const result = await actions.joinGame.call({
+        roomCode: roomCode.trim().toUpperCase(),
+        name: name.trim(),
+      });
+      if (result) {
+        router.push(`/game/${result.gameId}`);
+      } else {
+        toast.error(actions.joinGame.error || 'Game not found');
+      }
+    } catch {
+      toast.error('Failed to join game');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
+      <Toaster position="top-center" toastOptions={{ style: { background: '#1f2937', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
+
+      <motion.div
+        className="max-w-md w-full text-center space-y-8"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        {/* Hero */}
+        <div>
+          <motion.h1
+            className="text-6xl sm:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-purple-400"
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            MINDFUCK
+          </motion.h1>
+          <p className="text-white/50 mt-3 text-lg">The memory card game that messes with your head</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        {/* Floating cards decoration */}
+        <div className="flex justify-center gap-3 py-4">
+          {[0, 1, 2, 3].map((i) => (
+            <motion.div
+              key={i}
+              className="w-12 h-17 rounded-lg bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 border border-white/10"
+              initial={{ y: 20, rotate: -10 + i * 7 }}
+              animate={{ y: [0, -8, 0], rotate: -10 + i * 7 }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Button onClick={() => setShowCreate(true)} size="lg" className="w-full">
+            Create Game
+          </Button>
+          <Button onClick={() => setShowJoin(true)} variant="secondary" size="lg" className="w-full">
+            Join Game
+          </Button>
+          <Button onClick={() => router.push('/solo')} variant="secondary" size="lg" className="w-full">
+            Play Solo (vs Bots)
+          </Button>
+          <Button onClick={() => setShowRules(true)} variant="ghost" size="sm" className="w-full">
+            How to Play
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Create Game Modal */}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create Game">
+        <div className="space-y-4">
+          <Input
+            label="Your Name"
+            placeholder="Enter your display name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={20}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <Button onClick={handleCreate} loading={actions.createGame.loading} className="w-full" size="lg">
+            Create & Play
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Join Game Modal */}
+      <Modal open={showJoin} onClose={() => setShowJoin(false)} title="Join Game">
+        <div className="space-y-4">
+          <Input
+            label="Your Name"
+            placeholder="Enter your display name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={20}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+          <Input
+            label="Room Code"
+            placeholder="Enter 6-character code"
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+            maxLength={6}
+            className="font-mono tracking-[0.2em] text-center text-lg"
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <Button onClick={handleJoin} loading={actions.joinGame.loading} className="w-full" size="lg">
+            Join Game
+          </Button>
+        </div>
+      </Modal>
+
+      <HowToPlayModal open={showRules} onClose={() => setShowRules(false)} />
     </div>
   );
 }

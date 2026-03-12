@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Game state: readable by any authenticated user who is a player in the game
+    match /games/{gameId}/state/{doc} {
+      allow read: if request.auth != null
+                  && exists(/databases/$(database)/documents/games/$(gameId)/players/$(request.auth.uid));
+      allow write: if false;
+    }
+
+    // Player profiles: readable by all game participants
+    match /games/{gameId}/players/{playerId} {
+      allow read: if request.auth != null
+                  && exists(/databases/$(database)/documents/games/$(gameId)/players/$(request.auth.uid));
+      allow create: if request.auth != null && request.auth.uid == playerId;
+      allow update: if request.auth != null && request.auth.uid == playerId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connected']);
+      allow delete: if false;
+    }
+
+    // Private hands: only the owning player can read
+    match /games/{gameId}/hands/{playerId} {
+      allow read: if request.auth != null && request.auth.uid == playerId;
+      allow write: if false;
+    }
+
+    // Deck: no client access
+    match /games/{gameId}/deck/{doc} {
+      allow read, write: if false;
+    }
+  }
+}
